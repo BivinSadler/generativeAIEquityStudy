@@ -1,0 +1,312 @@
+---
+title: "Equity Project"
+output:
+  pdf_document: default
+  html_document: default
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## references used in write up: https://web.pdx.edu/~newsomj/ho_chisq%20within.pdf
+## Read in the Data
+
+
+```{r}
+library(tidyverse)
+df = read.csv("/Users/26438728/Library/CloudStorage/Box-Box/Monnie and Bivin Paper 2024/Raw Tests and Results/Results/Final Results/AllQuestionsFinalMcGee.csv", stringsAsFactors = TRUE)
+#df = read.csv(file.choose(),header = TRUE)
+df = df %>% filter(Exam != "SMUExam")
+```
+
+## Create Correct / Incorrect Columns
+
+```{r}
+df$Correct3_5 = if_else(df$Score3_5 >= 3,1,0)
+df$Correct4_0 = if_else(df$Score4_0 >= 3,1,0)
+```
+
+## Contingency Table to Mcnemar's Test Overall
+```{r}
+
+PP = sum(if_else((df$Correct3_5 == "1" & df$Correct4_0 == "1"),1,0))
+NP = sum(if_else((df$Correct3_5 == "0" & df$Correct4_0 == "1"),1,0))
+PN = sum(if_else((df$Correct3_5 == "1" & df$Correct4_0 == "0"),1,0))
+NN = sum(if_else((df$Correct3_5 == "0" & df$Correct4_0 == "0"),1,0))
+
+#McNemar Contingency Table
+#Rows 3.5 and Columns 4.0
+CT = matrix(c(PP,PN,NP,NN),nrow = 2, byrow = TRUE,dimnames = list(c("3.5 Correct", "3.5 Incorrect"), c("4.0 Correct", "4.0 Incorrect")))
+CT
+
+```
+
+## McNemar's Test Overall
+```{r}
+
+# 3.5 versus 4.0 for all the data
+mcnemar.test(CT)
+
+```
+
+
+
+
+## Contingency Table to McNemar's Test by Image
+```{r}
+
+# Filter for Each Question Type 
+df_Image = df %>% filter(Image == "1") # Has an Image
+df_No_Image = df %>% filter(Image == "0") # Does not have an Image
+  
+#Image
+PP = sum(if_else((df_Image$Correct3_5 == "1" & df_Image$Correct4_0 == "1"),1,0))
+NP = sum(if_else((df_Image$Correct3_5 == "0" & df_Image$Correct4_0 == "1"),1,0))
+PN = sum(if_else((df_Image$Correct3_5 == "1" & df_Image$Correct4_0 == "0"),1,0))
+NN = sum(if_else((df_Image$Correct3_5 == "0" & df_Image$Correct4_0 == "0"),1,0))
+
+#McNemar Contingency Table
+#Rows 3.5 and Columns 4.0
+CT_Image = matrix(c(PP,PN,NP,NN),nrow = 2, byrow = TRUE,dimnames = list(c("3.5 Correct", "3.5 Incorrect"), c("4.0 Correct", "4.0 Incorrect")))
+CT_Image
+
+#No Image
+PP = sum(if_else((df_No_Image$Correct3_5 == "1" & df_No_Image$Correct4_0 == "1"),1,0))
+NP = sum(if_else((df_No_Image$Correct3_5 == "0" & df_No_Image$Correct4_0 == "1"),1,0))
+PN = sum(if_else((df_No_Image$Correct3_5 == "1" & df_No_Image$Correct4_0 == "0"),1,0))
+NN = sum(if_else((df_No_Image$Correct3_5 == "0" & df_No_Image$Correct4_0 == "0"),1,0))
+
+#McNemar Contingency Table
+#Rows 3.5 and Columns 4.0
+CT_No_Image = matrix(c(PP,PN,NP,NN),nrow = 2, byrow = TRUE,dimnames = list(c("3.5 Correct", "3.5 Incorrect"), c("4.0 Correct", "4.0 Incorrect")))
+CT_No_Image
+
+```
+
+## McNemar's Test by Image
+```{r}
+
+# 3.5 versus 4.0
+
+#Image
+mcnemar.test(CT_Image)
+#No Image
+mcnemar.test(CT_No_Image)
+
+```
+
+
+
+
+
+
+## Contingency Table to Mcnemar's Test by Question Type
+```{r}
+
+# Filter for Each Question Type 
+df_FR = df %>% filter(Type == "FR") 
+df_MC = df %>% filter(Type == "MC") 
+  
+
+
+#FR
+PP = sum(if_else((df_FR$Correct3_5 == "1" & df_FR$Correct4_0 == "1"),1,0))
+NP = sum(if_else((df_FR$Correct3_5 == "0" & df_FR$Correct4_0 == "1"),1,0))
+PN = sum(if_else((df_FR$Correct3_5 == "1" & df_FR$Correct4_0 == "0"),1,0))
+NN = sum(if_else((df_FR$Correct3_5 == "0" & df_FR$Correct4_0 == "0"),1,0))
+
+#McNemar Contingency Table
+#Rows 3.5 and Columns 4.0
+CT_FR = matrix(c(PP,PN,NP,NN),nrow = 2, byrow = TRUE,dimnames = list(c("3.5 Correct", "3.5 Incorrect"), c("4.0 Correct", "4.0 Incorrect")))
+CT_FR
+
+
+#MC
+PP = sum(if_else((df_MC$Correct3_5 == "1" & df_MC$Correct4_0 == "1"),1,0))
+NP = sum(if_else((df_MC$Correct3_5 == "0" & df_MC$Correct4_0 == "1"),1,0))
+PN = sum(if_else((df_MC$Correct3_5 == "1" & df_MC$Correct4_0 == "0"),1,0))
+NN = sum(if_else((df_MC$Correct3_5 == "0" & df_MC$Correct4_0 == "0"),1,0))
+
+#McNemar Contingency Table
+#Rows 3.5 and Columns 4.0
+CT_MC = matrix(c(PP,PN,NP,NN),nrow = 2, byrow = TRUE,dimnames = list(c("3.5 Correct", "3.5 Incorrect"), c("4.0 Correct", "4.0 Incorrect")))
+CT_MC
+
+```
+
+## McNemar's Test by Question Type
+```{r}
+
+# 3.5 versus 4.0
+
+#FR
+mcnemar.test(CT_FR)
+#MC
+mcnemar.test(CT_MC)
+
+```
+
+
+
+## Contingency Table to Mcnemar's Test by Question Type and Image
+```{r}
+
+# Filter for Each Question Type
+df_FR_NoI = df %>% filter(Type == "FR" & Image == "0") 
+df_FR_I = df %>% filter(Type == "FR" & Image == "1") 
+df_MC_NoI = df %>% filter(Type == "MC" & Image == "0") 
+df_MC_I = df %>% filter(Type == "MC" & Image == "1") 
+  
+
+
+#FR_NoI
+PP = sum(if_else((df_FR_NoI$Correct3_5 == "1" & df_FR_NoI$Correct4_0 == "1"),1,0))
+NP = sum(if_else((df_FR_NoI$Correct3_5 == "0" & df_FR_NoI$Correct4_0 == "1"),1,0))
+PN = sum(if_else((df_FR_NoI$Correct3_5 == "1" & df_FR_NoI$Correct4_0 == "0"),1,0))
+NN = sum(if_else((df_FR_NoI$Correct3_5 == "0" & df_FR_NoI$Correct4_0 == "0"),1,0))
+
+#McNemar Contingency Table
+#Rows 3.5 and Columns 4.0
+CT_FR_NoI = matrix(c(PP,PN,NP,NN),nrow = 2, byrow = TRUE,dimnames = list(c("3.5 Correct", "3.5 Incorrect"), c("4.0 Correct", "4.0 Incorrect")))
+CT_FR_NoI
+
+
+#FR_I
+PP = sum(if_else((df_FR_I$Correct3_5 == "1" & df_FR_I$Correct4_0 == "1"),1,0))
+NP = sum(if_else((df_FR_I$Correct3_5 == "0" & df_FR_I$Correct4_0 == "1"),1,0))
+PN = sum(if_else((df_FR_I$Correct3_5 == "1" & df_FR_I$Correct4_0 == "0"),1,0))
+NN = sum(if_else((df_FR_I$Correct3_5 == "0" & df_FR_I$Correct4_0 == "0"),1,0))
+
+#McNemar Contingency Table
+#Rows 3.5 and Columns 4.0
+CT_FR_I = matrix(c(PP,PN,NP,NN),nrow = 2, byrow = TRUE,dimnames = list(c("3.5 Correct", "3.5 Incorrect"), c("4.0 Correct", "4.0 Incorrect")))
+CT_FR_I
+
+
+
+#MC_NoI
+PP = sum(if_else((df_MC_NoI$Correct3_5 == "1" & df_MC_NoI$Correct4_0 == "1"),1,0))
+NP = sum(if_else((df_MC_NoI$Correct3_5 == "0" & df_MC_NoI$Correct4_0 == "1"),1,0))
+PN = sum(if_else((df_MC_NoI$Correct3_5 == "1" & df_MC_NoI$Correct4_0 == "0"),1,0))
+NN = sum(if_else((df_MC_NoI$Correct3_5 == "0" & df_MC_NoI$Correct4_0 == "0"),1,0))
+
+#McNemar Contingency Table
+#Rows 3.5 and Columns 4.0
+CT_MC_NoI = matrix(c(PP,PN,NP,NN),nrow = 2, byrow = TRUE,dimnames = list(c("3.5 Correct", "3.5 Incorrect"), c("4.0 Correct", "4.0 Incorrect")))
+CT_MC_NoI
+
+
+
+#MC_I
+PP = sum(if_else((df_MC_I$Correct3_5 == "1" & df_MC_I$Correct4_0 == "1"),1,0))
+NP = sum(if_else((df_MC_I$Correct3_5 == "0" & df_MC_I$Correct4_0 == "1"),1,0))
+PN = sum(if_else((df_MC_I$Correct3_5 == "1" & df_MC_I$Correct4_0 == "0"),1,0))
+NN = sum(if_else((df_MC_I$Correct3_5 == "0" & df_MC_I$Correct4_0 == "0"),1,0))
+
+#McNemar Contingency Table
+#Rows 3.5 and Columns 4.0
+CT_MC_I = matrix(c(PP,PN,NP,NN),nrow = 2, byrow = TRUE,dimnames = list(c("3.5 Correct", "3.5 Incorrect"), c("4.0 Correct", "4.0 Incorrect")))
+CT_MC_I
+
+
+```
+
+## McNemar's Test by Question Type
+```{r}
+
+# 3.5 versus 4.0
+
+#FR_NoI
+mcnemar.test(CT_FR_NoI)
+#FR_I
+mcnemar.test(CT_FR_I)
+#MC_NoI
+mcnemar.test(CT_MC_NoI)
+#MC_I
+mcnemar.test(CT_MC_I)
+
+```
+
+
+
+## Contingency Table to Mcnemar's Test by Exam
+```{r}
+
+# Filter for Each Question Type
+df_ACTM = df %>% filter(Exam == "ACTM") 
+df_CAOS = df %>% filter(Exam == "CAOS") 
+df_SMUExam = df %>% filter(Exam == "SMUExam") 
+df_AP_2011_B = df %>% filter(Exam == "AP2011") 
+  
+
+
+#ACTM
+PP = sum(if_else((df_ACTM$Correct3_5 == "1" & df_ACTM$Correct4_0 == "1"),1,0))
+NP = sum(if_else((df_ACTM$Correct3_5 == "0" & df_ACTM$Correct4_0 == "1"),1,0))
+PN = sum(if_else((df_ACTM$Correct3_5 == "1" & df_ACTM$Correct4_0 == "0"),1,0))
+NN = sum(if_else((df_ACTM$Correct3_5 == "0" & df_ACTM$Correct4_0 == "0"),1,0))
+
+#McNemar Contingency Table
+#Rows 3.5 and Columns 4.0
+CT_ACTM = matrix(c(PP,PN,NP,NN),nrow = 2, byrow = TRUE,dimnames = list(c("3.5 Correct", "3.5 Incorrect"), c("4.0 Correct", "4.0 Incorrect")))
+CT_ACTM
+
+
+#CAOS
+PP = sum(if_else((df_CAOS$Correct3_5 == "1" & df_CAOS$Correct4_0 == "1"),1,0))
+NP = sum(if_else((df_CAOS$Correct3_5 == "0" & df_CAOS$Correct4_0 == "1"),1,0))
+PN = sum(if_else((df_CAOS$Correct3_5 == "1" & df_CAOS$Correct4_0 == "0"),1,0))
+NN = sum(if_else((df_CAOS$Correct3_5 == "0" & df_CAOS$Correct4_0 == "0"),1,0))
+
+#McNemar Contingency Table
+#Rows 3.5 and Columns 4.0
+CT_CAOS = matrix(c(PP,PN,NP,NN),nrow = 2, byrow = TRUE,dimnames = list(c("3.5 Correct", "3.5 Incorrect"), c("4.0 Correct", "4.0 Incorrect")))
+CT_CAOS
+
+
+
+#SMUExam
+PP = sum(if_else((df_SMUExam$Correct3_5 == "1" & df_SMUExam$Correct4_0 == "1"),1,0))
+NP = sum(if_else((df_SMUExam$Correct3_5 == "0" & df_SMUExam$Correct4_0 == "1"),1,0))
+PN = sum(if_else((df_SMUExam$Correct3_5 == "1" & df_SMUExam$Correct4_0 == "0"),1,0))
+NN = sum(if_else((df_SMUExam$Correct3_5 == "0" & df_SMUExam$Correct4_0 == "0"),1,0))
+
+#McNemar Contingency Table
+#Rows 3.5 and Columns 4.0
+CT_SMUExam = matrix(c(PP,PN,NP,NN),nrow = 2, byrow = TRUE,dimnames = list(c("3.5 Correct", "3.5 Incorrect"), c("4.0 Correct", "4.0 Incorrect")))
+CT_SMUExam
+
+
+
+#AP_2011_B
+PP = sum(if_else((df_AP_2011_B$Correct3_5 == "1" & df_AP_2011_B$Correct4_0 == "1"),1,0))
+NP = sum(if_else((df_AP_2011_B$Correct3_5 == "0" & df_AP_2011_B$Correct4_0 == "1"),1,0))
+PN = sum(if_else((df_AP_2011_B$Correct3_5 == "1" & df_AP_2011_B$Correct4_0 == "0"),1,0))
+NN = sum(if_else((df_AP_2011_B$Correct3_5 == "0" & df_AP_2011_B$Correct4_0 == "0"),1,0))
+
+#McNemar Contingency Table
+#Rows 3.5 and Columns 4.0
+CT_AP_2011_B = matrix(c(PP,PN,NP,NN),nrow = 2, byrow = TRUE,dimnames = list(c("3.5 Correct", "3.5 Incorrect"), c("4.0 Correct", "4.0 Incorrect")))
+CT_AP_2011_B
+
+
+```
+
+## McNemar's Test by Exam
+```{r}
+
+# 3.5 versus 4.0 by Exam
+
+#FR_NoI
+mcnemar.test(CT_ACTM)
+#FR_I
+mcnemar.test(CT_CAOS)
+#MC_NoI
+mcnemar.test(CT_SMUExam)
+#MC_I
+mcnemar.test(CT_AP_2011_B)
+
+```
+

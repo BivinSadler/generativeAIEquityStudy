@@ -1,0 +1,230 @@
+---
+title: "ChatGPT Comparison Analysis"
+author: "Monnie McGee"
+date: "2024-04-24"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+The following assumes that the data file `AllQuestionsFinal2.csv` is locating in the current working directory for R. Use `getwd()` to determine the current working directory. If a change is needed, use `setwd()`.
+
+Ordinal logistic regression was used to analyze the results. 
+
+```{r Packages needed}
+library(tidyverse) # data manipulation
+library(ggplot2) # graphics
+library(VGAM) # ordinal logistic regression
+library(MASS) # ordinal logistic regression (double check)
+library(brant) # check proportionl odds ratio
+```
+
+```{r Enter data}
+
+## dfWide = data in wide format (2 columns for scores)
+## dfLong = data in long format (1 column for scores)
+dfWide <- read.csv(file.choose(), header=T)
+dfWide$Score4_0 = if_else(dfWide$Score4_0 == 5,4,as.numeric(dfWide$Score4_0))
+dfWide$Score3_5 = if_else(dfWide$Score3_5 == 5,4,as.numeric(dfWide$Score3_5))
+dfWide$Image <- as.factor(dfWide$Image)
+dfWide$Type <- as.factor(dfWide$Type)
+dfWide$Exam <- as.factor(dfWide$Exam)
+dfWide$Diff <- dfWide$Score4_0 - dfWide$Score3_5
+table(dfWide$Diff) 
+```
+
+The table shows 8 different levels, some with only 1 observation. Therefore, we rescale the `Diff` variable into a variable called `Compare`. The rescaling is given by the following heuristic:
+
+- if Diff < 0, ChatGPT4.0 is worse
+- if Diff = 0, ChatGPT3.5 and 4.0 are the same
+- if Diff = 1 or 2, GPT4.0 is marginally better
+- if Diff > 2 GPT4.0 is much better
+
+Free response and multiple choice questions were coded together.  For MC questions, when GPT 4 wins, the score is 3. This is fine. On a test, MC questions are generally all correct or all incorrect. Therefore, missing a MC question is equivalent to getting partial  credit on a FR question. 
+
+```{r Rescaling}
+dfWide <- dfWide %>% mutate(
+  Compare = case_when(
+    Diff < 0 ~ 'Worse',
+    Diff == 0 ~ 'Same',
+    Diff == 1 | Diff == 2 ~ "Somewhat",
+    Diff > 2 ~ "Much"
+    )
+ )
+#dfWide$Compare <- ordered(dfWide$Compare, levels = c("Worse","Same","Somewhat","Much") ) # make Compare an ordered factor and specify order
+dfWide$Compare <- ordered(dfWide$Compare, levels = c("Much","Somewhat", "Same", "Worse") ) # make Compare an ordered factor and specify order
+
+str(dfWide)
+table(dfWide$Compare)
+```
+
+Numbers within categories are still somewhat lopsided, but they are at least better. No category has only one entry.
+
+Creating the difference variable is a way of taking the paired nature of the questions into account.
+
+Use MASS library
+
+```{r OrdinalLogReg}
+## Compare is the response. Takes platform into account.
+## Type = FR or MC is an explanatory variable
+## Image = 0 or 1 means an image was involved (0 = No, 1 = yes)
+fit.polr <- polr(Compare ~ Image + Type, data=dfWide)
+summary(fit.polr)
+brant(fit.polr)
+```
+
+Now use VGAM library for comparison.
+```{r OridinalLogRegVGAM}
+dfWide$Type = relevel(dfWide$Type, ref = "MC")
+fit.vglm <- vglm(Compare ~ Type+Image, data=dfWide, cumulative(parallel=TRUE))
+#fit.vglm <- vglm(Compare ~ Exam, data=dfWide, cumulative(parallel=TRUE))
+summary(fit.vglm)
+QType = data.frame(Type = "MC", Image = "0")
+predict(fit.vglm, type = "response", newdata = QType)
+QType = data.frame(Type = "MC", Image = "1")
+predict(fit.vglm, type = "response", newdata = QType)
+QType = data.frame(Type = "FR", Image = "0")
+predict(fit.vglm, type = "response", newdata = QType)
+QType = data.frame(Type = "FR", Image = "1")
+predict(fit.vglm, type = "response", newdata = QType)
+
+#exp(confint(fit.vglm))
+
+
+# Estimate individual probabilities
+
+#PCMuch)
+PMuch_MC = exp(-1.8256) / (1 + exp(-1.8256))
+PMuch_MCI = exp(-1.8256 +1.9172) / (1+exp(-1.8256 +1.9172))
+PMuch_FR = exp(-1.8256 +.4565) / (1+ exp(-1.8256 +.4565))
+PMuch_FRI = exp(-1.8256 +.4565+1.9172) / (1+exp(-1.8256 +.4565+1.9172))
+
+
+#P(Somewhat) = P(X <= Somewhat) - P(X = Much)
+PSomewhat_MC = (exp(-1.1350) / (1 + exp(-1.1350))) - (exp(-1.8256) / (1 + exp(-1.8256)))
+PSomewhat_MCI = (exp(-1.1350 +1.9172) / (1+exp(-1.1350 +1.9172))) - (exp(-1.8256 +1.9172) / (1+exp(-1.8256 +1.9172)))
+PSomewhat_FR = (exp(-1.1350 +.4565) / (1+ exp(-1.1350 +.4565))) - (exp(-1.8256 +.4565) / (1+ exp(-1.8256 +.4565)))
+PSomewhat_FRI = (exp(-1.1350 +.4565+1.9172) / (1+exp(-1.1350 +.4565+1.9172))) - (exp(-1.8256 +.4565+1.9172) / (1+exp(-1.8256 +.4565+1.9172)))
+
+#P(Same) = P(X <= Same) - P(X <= Somewhat)
+PSame_MC = (exp(2.2053 ) / (1 + exp(2.2053 ))) - ((exp(-1.1350) / (1 + exp(-1.1350))))
+PSame_MCI = (exp(2.2053  +1.9172) / (1+exp(2.2053  +1.9172))) - (exp(-1.1350 +1.9172) / (1+exp(-1.1350 +1.9172)))
+PSame_FR = (exp(2.2053  +.4565) / (1+ exp(2.2053  +.4565))) - ((exp(-1.1350 +.4565) / (1+ exp(-1.1350 +.4565))))
+PSame_FRI = (exp(2.2053  +.4565+1.9172) / (1+exp(2.2053  +.4565+1.9172))) - (exp(-1.1350 +.4565+1.9172) / (1+exp(-1.1350 +.4565+1.9172)))
+
+#P(Worse) = 1 - P(X <= Same)
+PWorse_MC = 1 - (exp(2.2053 ) / (1 + exp(2.2053 )))
+PWorse_MCI = 1 - (exp(2.2053  +1.9172) / (1+exp(2.2053  +1.9172)))
+PWorse_FR = 1 - (exp(2.2053  +.4565) / (1+ exp(2.2053  +.4565)))
+PWorse_FRI = 1 - (exp(2.2053  +.4565+1.9172) / (1+exp(2.2053  +.4565+1.9172)))
+
+
+
+
+```
+
+# Plot Creation
+
+To create a spaghetti plot, we need the data in long format.
+```{r PivotLonger}
+dfLong <- dfWide %>% pivot_longer(Score3_5:Score4_0,
+                      names_to=c("Mark","Platform"),
+                      values_to="Score", names_sep=5)
+set.seed(1)
+dfLong$ScoreJitter = dfLong$Score + rnorm(dim(dfLong)[1],0,.1) # Jitter
+dfLong$Exam <- as.factor(dfLong$Exam)
+dfLong$Type <- as.factor(dfLong$Type)
+dfLong$Image <- as.factor(dfLong$Image)
+dfLong$Platform <- as.factor(dfLong$Platform)
+str(dfLong)
+```
+
+Create a spaghetti plot where line type indicates presence of image. MC and FR questions are used.
+```{r Plots}
+# Create the ggplot
+p1 <- ggplot(data = dfLong, aes(x = Platform, y = ScoreJitter, group = Question)) +
+    mytheme +
+    scale_colour_grey(start = 0.4, end = 0.6) +  # Set the grey color scale for the lines
+    labs(
+        y = "Score",  # y-axis label
+        x = "Platform"  # x-axis label
+    ) +
+    geom_line(lwd = 0.5) +  # Set the line width
+    scale_x_discrete(labels = c("ChatGPT3.5", "ChatGPT4")) +  # Custom labels for x-axis
+    ylim(-0.25, 4.5)  # Set limits for the y-axis
+
+# Print the plot
+print(p1)
+```
+
+
+Create a spaghetti plot where line type indicates presence of image. MC and FR questions are used. Remove the concordant lines.
+
+
+```{r Plots}
+
+# Uncomment to reemove Concordant lines
+dfLong <- dfLong %>% filter(Diff != 0)
+
+# Create the ggplot
+p1 <- ggplot(data = dfLong, aes(x = Platform, y = ScoreJitter, group = Question)) +
+    mytheme +
+    scale_colour_grey(start = 0.4, end = 0.6) +  # Set the grey color scale for the lines
+    labs(
+        y = "Score",  # y-axis label
+        x = "Platform"  # x-axis label
+    ) +
+    geom_line(lwd = 0.5) +  # Set the line width
+    scale_x_discrete(labels = c("ChatGPT3.5", "ChatGPT4")) +  # Custom labels for x-axis
+    ylim(-0.25, 4.5)  # Set limits for the y-axis
+
+# Print the plot
+print(p1)
+```
+
+
+## Spaghetti Plot for McNemar
+
+Here we code an Incorrect answer as 0 and a correct answer as one
+```{r PivotLonger}
+
+dfWide$Correct3_5 = if_else(dfWide$Score3_5 >= 3,3,0)
+dfWide$Correct4_0 = if_else(dfWide$Score4_0 >= 3,3,0)
+dfWide$ConOrDis = if_else(dfWide$Correct3_5 == dfWide$Correct4_0,"Concordant","Discordant")
+
+#For plottling all pairs
+dfLong <- dfWide %>% pivot_longer(Correct3_5:Correct4_0,
+                      names_to=c("Mark","Platform"),
+                      values_to="Score", names_sep=7)
+
+set.seed(1)
+dfLong$ScoreJitter = dfLong$Score + rnorm(dim(dfLong)[1],0,.1) # Jitter
+
+dfLong$Exam <- as.factor(dfLong$Exam)
+dfLong$Type <- as.factor(dfLong$Type)
+dfLong$Image <- as.factor(dfLong$Image)
+dfLong$Platform <- as.factor(dfLong$Platform)
+str(dfLong)
+```
+
+
+```{r Plots}
+
+# Uncomment to reemove Concordant lines
+dfLong <- dfLong %>% filter(ConOrDis == "Discordant")
+
+# Create the ggplot
+p1 <- ggplot(data = dfLong, aes(x = Platform, y = ScoreJitter, group = Question)) +
+    mytheme +
+    scale_colour_grey(start = 0.4, end = 0.6) +  # Set the grey color scale for the lines
+    labs(
+        y = "Score",  # y-axis label
+        x = "Platform"  # x-axis label
+    ) +
+    geom_line(lwd = 0.5) +  # Set the line width
+    scale_x_discrete(labels = c("ChatGPT3.5", "ChatGPT4")) +  # Custom labels for x-axis
+    ylim(-0.25, 3.5)  # Set limits for the y-axis
+
+# Print the plot
+print(p1)
+```
